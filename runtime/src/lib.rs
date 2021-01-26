@@ -42,6 +42,7 @@ pub use frame_support::{
 /// Import the template pallet.
 pub use pallet_template;
 pub use pallet_ocw_demo;
+pub use pallet_ocw_lesson;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -271,6 +272,13 @@ impl pallet_template::Trait for Runtime {
 /// For pallet-ocw-demo
 impl pallet_ocw_demo::Trait for Runtime {
 	type AuthorityId = pallet_ocw_demo::crypto::TestAuthId;
+	type Call = Call;
+	type Event = Event;
+}
+
+/// For pallet-ocw-lesson
+impl pallet_ocw_lesson::Trait for Runtime {
+	type AuthorityId = pallet_ocw_lesson::crypto::TestAuthId;
 	type Call = Call;
 	type Event = Event;
 }

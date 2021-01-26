@@ -104,16 +104,40 @@ impl <T: SigningTypes> SignedPayload<T> for Payload<T::Public> {
 
 // ref: https://serde.rs/container-attrs.html#crate
 #[derive(Deserialize, Encode, Decode, Default)]
-struct GithubInfo {
+struct DotPriceInfo {
 	// Specify our own deserializing function to convert JSON string to vector of bytes
-	#[serde(deserialize_with = "de_string_to_bytes")]
-	login: Vec<u8>,
-	#[serde(deserialize_with = "de_string_to_bytes")]
-	blog: Vec<u8>,
-	public_repos: u32,
+	#[serde(deserialize_with = "string_to_bytes")]
+	id: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	rank: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	symbol: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	name: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	supply: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	marketCapUsd: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	volumeUsd24Hr: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	priceUsd: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	changePercent24Hr: Vec<u8>,
+
+	#[serde(deserialize_with = "string_to_bytes")]
+	explorer: Vec<u8>,
 }
 
-pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
+pub fn string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
 where
 	D: Deserializer<'de>,
 {
@@ -121,16 +145,16 @@ where
 	Ok(s.as_bytes().to_vec())
 }
 
-impl fmt::Debug for GithubInfo {
+impl fmt::Debug for DotPriceInfo {
 	// `fmt` converts the vector of bytes inside the struct back to string for
 	//   more friendly display.
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(
 			f,
-			"{{ login: {}, blog: {}, public_repos: {} }}",
-			str::from_utf8(&self.login).map_err(|_| fmt::Error)?,
-			str::from_utf8(&self.blog).map_err(|_| fmt::Error)?,
-			&self.public_repos
+			"{{ symbol: {}, name: {}, price: {} }}",
+			str::from_utf8(&self.symbol).map_err(|_| fmt::Error)?,
+			str::from_utf8(&self.name).map_err(|_| fmt::Error)?,
+			str::from_utf8(&self.priceUsd).map_err(|_| fmt::Error)?,
 		)
 	}
 }
