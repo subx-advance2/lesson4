@@ -37,7 +37,7 @@ use sp_std::{
 };
 
 use serde::{Deserialize, Deserializer};
-use serde_json::{Result, Value};
+use serde_json::{Result, Value, json};
 
 /// Defines application identifier for crypto keys of this module.
 ///
@@ -319,8 +319,9 @@ impl<T: Trait> Module<T> {
 		//   4) `with_block_and_time_deadline` - lock with custom time and block expiration
 		// Here we choose the most custom one for demonstration purpose.
 		let mut lock = StorageLock::<BlockAndTime<Self>>::with_block_and_time_deadline(
-			b"offchain-demo::lock", LOCK_BLOCK_EXPIRATION,
-			rt_offchain::Duration::from_millis(LOCK_TIMEOUT_EXPIRATION)
+			b"offchain-demo::lock", 
+			LOCK_BLOCK_EXPIRATION,
+			rt_offchain::Duration::from_millis(LOCK_TIMEOUT_EXPIRATION),
 		);
 
 		// We try to acquire the lock here. If failed, we know the `fetch_n_parse` part inside is being
@@ -347,9 +348,11 @@ impl<T: Trait> Module<T> {
 		debug::info!("{}", resp_str);
 
 		// Deserializing JSON to struct, thanks to `serde` and `serde_derive`
-		let jsonValue: Value = serde_json::from_str(&resp_str).unwrap();
+		let resp_json = json!(&resp_str);
 
-		let info: DotPriceInfo = serde_json::from_str(&resp_str).map_err(|_| <Error<T>>::HttpFetchingError)?;
+		debug::info!("data json: {}", resp_json["data"]);
+
+		let info: DotPriceInfo = serde_json::from_str(&resp_json["data"]).map_err(|_| <Error<T>>::HttpFetchingError)?;
 
 		Ok(info)
 	}
@@ -368,7 +371,7 @@ impl<T: Trait> Module<T> {
 
 		// For github API request, we also need to specify `user-agent` in http request header.
 		//   See: https://developer.github.com/v3/#user-agent-required
-		let pending = request
+		let req = request
 			.add_header("User-Agent", HTTP_HEADER_USER_AGENT)
 			.deadline(timeout) // Setting the timeout time
 			.send() // Sending the request out by the host
@@ -378,7 +381,7 @@ impl<T: Trait> Module<T> {
 		//   runtime to wait here.
 		// The returning value here is a `Result` of `Result`, so we are unwrapping it twice by two `?`
 		//   ref: https://substrate.dev/rustdocs/v2.0.0/sp_runtime/offchain/http/struct.PendingRequest.html#method.try_wait
-		let response = pending
+		let response = req
 			.try_wait(timeout)
 			.map_err(|_| <Error<T>>::HttpFetchingError)?
 			.map_err(|_| <Error<T>>::HttpFetchingError)?;
