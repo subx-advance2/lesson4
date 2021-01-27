@@ -37,6 +37,7 @@ use sp_std::{
 };
 
 use serde::{Deserialize, Deserializer};
+use serde_json::{Result, Value};
 
 /// Defines application identifier for crypto keys of this module.
 ///
@@ -138,8 +139,7 @@ struct DotPriceInfo {
 }
 
 pub fn string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
-where
-	D: Deserializer<'de>,
+	where D: Deserializer<'de>,
 {
 	let s: &str = Deserialize::deserialize(de)?;
 	Ok(s.as_bytes().to_vec())
@@ -260,7 +260,7 @@ decl_module! {
 				0 => Self::offchain_signed_tx(block_number),
 				1 => Self::offchain_unsigned_tx(block_number),
 				2 => Self::offchain_unsigned_tx_signed_payload(block_number),
-				3 => Self::fetch_github_info(),
+				3 => Self::fetch_dot_price_info(),
 				_ => Err(Error::<T>::UnknownOffchainMux),
 			};
 
@@ -287,11 +287,11 @@ impl<T: Trait> Module<T> {
 	/// Check if we have fetched github info before. If yes, we can use the cached version
 	///   stored in off-chain worker storage `storage`. If not, we fetch the remote info and
 	///   write the info into the storage for future retrieval.
-	fn fetch_github_info() -> Result<(), Error<T>> {
+	fn fetch_dot_price_info() -> Result<(), Error<T>> {
 		// Create a reference to Local Storage value.
 		// Since the local storage is common for all offchain workers, it's a good practice
 		// to prepend our entry with the pallet name.
-		let s_info = StorageValueRef::persistent(b"offchain-demo::gh-info");
+		let valueRef = StorageValueRef::persistent(b"offchain-demo::dot-price-info");
 
 		// Local storage is persisted and shared between runs of the offchain workers,
 		// offchain workers may run concurrently. We can use the `mutate` function to
@@ -302,9 +302,9 @@ impl<T: Trait> Module<T> {
 		// the storage comprehensively.
 		//
 		// Ref: https://substrate.dev/rustdocs/v2.0.0/sp_runtime/offchain/storage/struct.StorageValueRef.html
-		if let Some(Some(gh_info)) = s_info.get::<GithubInfo>() {
+		if let Some(Some(info)) = valueRef.get::<DotPriceInfo>() {
 			// gh-info has already been fetched. Return early.
-			debug::info!("cached gh-info: {:?}", gh_info);
+			debug::info!("cached dot-price-info: {:?}", info);
 			return Ok(());
 		}
 
@@ -327,8 +327,8 @@ impl<T: Trait> Module<T> {
 		//   executed by previous run of ocw, so the function just returns.
 		// ref: https://substrate.dev/rustdocs/v2.0.0/sp_runtime/offchain/storage_lock/struct.StorageLock.html#method.try_lock
 		if let Ok(_guard) = lock.try_lock() {
-			match Self::fetch_n_parse() {
-				Ok(gh_info) => { s_info.set(&gh_info); }
+			match Self::do_fetch() {
+				Ok(info) => { valueRef.set(&info); }
 				Err(err) => { return Err(err); }
 			}
 		}
@@ -336,7 +336,7 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Fetch from remote and deserialize the JSON to a struct
-	fn fetch_n_parse() -> Result<GithubInfo, Error<T>> {
+	fn do_fetch() -> Result<DotPriceInfo, Error<T>> {
 		let resp_bytes = Self::fetch_from_remote().map_err(|e| {
 			debug::error!("fetch_from_remote error: {:?}", e);
 			<Error<T>>::HttpFetchingError
@@ -347,9 +347,11 @@ impl<T: Trait> Module<T> {
 		debug::info!("{}", resp_str);
 
 		// Deserializing JSON to struct, thanks to `serde` and `serde_derive`
-		let gh_info: GithubInfo =
-			serde_json::from_str(&resp_str).map_err(|_| <Error<T>>::HttpFetchingError)?;
-		Ok(gh_info)
+		let jsonValue: Value = serde_json::from_str(&resp_str).unwrap();
+
+		let info: DotPriceInfo = serde_json::from_str(&resp_str).map_err(|_| <Error<T>>::HttpFetchingError)?;
+
+		Ok(info)
 	}
 
 	/// This function uses the `offchain::http` API to query the remote github information,
